@@ -1,0 +1,26 @@
+backend/target/
+backend/*.class
+backend/*.jar
+backend/*.war
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/.env
+# IDEs
+
+
+.idea/
+*.iml
+.eclipse/
+.settings/
+.classpath
+.project
+
+
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.env
+
+.env
+
+.DS_Store
+Thumbs.db
