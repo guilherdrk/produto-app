@@ -1,0 +1,19 @@
+# Não copia dependências (serão instaladas no container)
+node_modules/
+
+# Não copia builds anteriores
+dist/
+
+# Não copia arquivos de cache do Angular CLI
+.angular/
+
+# Não copia arquivos de ambiente (são injetados pelo Docker)
+.env
+*.env
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
