@@ -1,0 +1,16 @@
+# Não copia o resultado de builds anteriores
+target/
+
+# Não copia arquivos de IDE
+.idea/
+*.iml
+.eclipse/
+.settings/
+
+# Não copia arquivos de ambiente local
+.env
+*.env
+
+# Git
+.git/
+.gitignore
