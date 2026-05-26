@@ -1,0 +1,106 @@
+<div class="auth-page">
+
+  <!-- Hero lateral -->
+  <div class="auth-hero">
+    <div class="hero-content">
+      <span class="hero-icon">🚀</span>
+      <h1>Comece agora</h1>
+      <p>Crie sua conta e tenha acesso imediato ao gerenciamento completo de produtos.</p>
+      <div class="hero-features">
+        <div class="hero-feature"><span class="dot"></span>Cadastro rápido e seguro</div>
+        <div class="hero-feature"><span class="dot"></span>Dados protegidos com BCrypt</div>
+        <div class="hero-feature"><span class="dot"></span>Sessão segura com JWT</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulário -->
+  <div class="auth-form-side">
+    <div class="auth-card">
+      <div class="auth-header">
+        <a routerLink="/" class="logo">
+          <span>📦</span> Produto App
+        </a>
+        <h2>Criar conta</h2>
+        <p>Preencha os dados para começar</p>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="field">
+          <label for="nome">Nome completo</label>
+          <input
+            id="nome"
+            type="text"
+            formControlName="nome"
+            placeholder="João Silva"
+            autocomplete="name"
+            [class.erro]="nome.invalid && nome.touched"
+          />
+          <span class="mensagem-erro" *ngIf="nome.invalid && nome.touched">
+            Nome deve ter no mínimo 2 caracteres
+          </span>
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            placeholder="seu@email.com"
+            autocomplete="email"
+            [class.erro]="email.invalid && email.touched"
+          />
+          <span class="mensagem-erro" *ngIf="email.invalid && email.touched">
+            Informe um email válido
+          </span>
+        </div>
+
+        <div class="field">
+          <label for="senha">Senha</label>
+          <input
+            id="senha"
+            type="password"
+            formControlName="senha"
+            placeholder="Mínimo 6 caracteres"
+            autocomplete="new-password"
+            [class.erro]="senha.invalid && senha.touched"
+          />
+          <span class="mensagem-erro" *ngIf="senha.invalid && senha.touched">
+            Senha deve ter no mínimo 6 caracteres
+          </span>
+        </div>
+
+        <div class="field">
+          <label for="confirmarSenha">Confirmar senha</label>
+          <input
+            id="confirmarSenha"
+            type="password"
+            formControlName="confirmarSenha"
+            placeholder="Repita a senha"
+            autocomplete="new-password"
+            [class.erro]="(confirmarSenha.touched && form.hasError('senhasDiferentes'))"
+          />
+          <span class="mensagem-erro"
+            *ngIf="confirmarSenha.touched && form.hasError('senhasDiferentes')">
+            As senhas não coincidem
+          </span>
+        </div>
+
+        <div class="alert alert--error" *ngIf="erro">
+          {{ erro }}
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--full" [disabled]="carregando">
+          <span class="spinner" *ngIf="carregando"></span>
+          {{ carregando ? 'Criando conta...' : 'Criar conta' }}
+        </button>
+      </form>
+
+      <p class="form-footer">
+        Já tem conta? <a routerLink="/login">Fazer login</a>
+      </p>
+    </div>
+  </div>
+
+</div>

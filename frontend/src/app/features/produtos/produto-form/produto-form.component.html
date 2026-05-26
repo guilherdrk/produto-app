@@ -1,0 +1,122 @@
+<app-navbar></app-navbar>
+
+<main class="page animate-in">
+
+  <!-- Cabeçalho com breadcrumb -->
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">
+        <a routerLink="/produtos">Produtos</a>
+        <span class="sep">›</span>
+        <span>{{ titulo }}</span>
+      </div>
+      <h2>{{ titulo }}</h2>
+    </div>
+  </div>
+
+  <!-- Carregando dados (modo edição) -->
+  <div class="loading-state" *ngIf="carregandoDados">
+    <span class="spinner" style="width:28px;height:28px;border-width:3px;"></span>
+    <p>Carregando produto...</p>
+  </div>
+
+  <!-- Formulário -->
+  <div class="form-container" *ngIf="!carregandoDados">
+    <div class="card">
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+        <div class="form-grid">
+          <!-- Nome -->
+          <div class="field field--full">
+            <label for="nome">Nome do produto *</label>
+            <input
+              id="nome"
+              type="text"
+              formControlName="nome"
+              placeholder="Ex: Notebook Dell Inspiron"
+              [class.erro]="nome.invalid && nome.touched"
+            />
+            <span class="mensagem-erro" *ngIf="nome.errors?.['required'] && nome.touched">
+              Nome é obrigatório
+            </span>
+            <span class="mensagem-erro" *ngIf="nome.errors?.['minlength'] && nome.touched">
+              Nome deve ter no mínimo 2 caracteres
+            </span>
+          </div>
+
+          <!-- Preço -->
+          <div class="field">
+            <label for="preco">Preço (R$) *</label>
+            <input
+              id="preco"
+              type="number"
+              formControlName="preco"
+              placeholder="0,00"
+              step="0.01"
+              min="0.01"
+              [class.erro]="preco.invalid && preco.touched"
+            />
+            <span class="mensagem-erro" *ngIf="preco.invalid && preco.touched">
+              Informe um preço válido (maior que R$ 0,01)
+            </span>
+          </div>
+
+          <!-- Estoque -->
+          <div class="field">
+            <label for="estoque">Estoque *</label>
+            <input
+              id="estoque"
+              type="number"
+              formControlName="estoque"
+              placeholder="0"
+              min="0"
+              [class.erro]="estoque.invalid && estoque.touched"
+            />
+            <span class="mensagem-erro" *ngIf="estoque.invalid && estoque.touched">
+              Estoque não pode ser negativo
+            </span>
+          </div>
+
+          <!-- Descrição -->
+          <div class="field field--full">
+            <label for="descricao">Descrição <span class="opcional">(opcional)</span></label>
+            <textarea
+              id="descricao"
+              formControlName="descricao"
+              placeholder="Descreva o produto, características, especificações..."
+              rows="4"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Erro geral -->
+        <div class="alert alert--error" *ngIf="erro" style="margin-top: 16px;">
+          {{ erro }}
+        </div>
+
+        <!-- Ações do formulário -->
+        <div class="form-actions">
+          <a routerLink="/produtos" class="btn btn--ghost">
+            Cancelar
+          </a>
+          <button type="submit" class="btn btn--primary" [disabled]="form.invalid || carregando">
+            <span class="spinner" *ngIf="carregando"></span>
+            {{ carregando ? 'Salvando...' : (modoEdicao ? 'Salvar alterações' : 'Criar produto') }}
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- Dica informativa -->
+    <div class="info-tip" *ngIf="!modoEdicao">
+      <span class="tip-icon">💡</span>
+      <p>
+        Após criar o produto, ele ficará ativo e visível na listagem.
+        Você pode editá-lo ou desativá-lo a qualquer momento.
+      </p>
+    </div>
+  </div>
+
+</main>

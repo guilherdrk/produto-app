@@ -1,0 +1,148 @@
+/* Estilo compartilhado entre Login e Register */
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    .auth-hero { display: none; }
+  }
+}
+
+/* Lado esquerdo — ilustração/hero */
+.auth-hero {
+  background: linear-gradient(135deg, #1a1d27 0%, #12152a 50%, #0f1117 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(108,99,255,0.15) 0%, transparent 70%);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .hero-content {
+    position: relative;
+    text-align: center;
+    z-index: 1;
+  }
+
+  .hero-icon {
+    font-size: 4rem;
+    margin-bottom: 24px;
+    display: block;
+    filter: drop-shadow(0 0 24px rgba(108,99,255,0.6));
+  }
+
+  h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #fff 0%, #a89fff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  p {
+    color: #8892b0;
+    font-size: 1rem;
+    line-height: 1.7;
+    max-width: 320px;
+  }
+
+  .hero-features {
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+  }
+
+  .hero-feature {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #a89fff;
+    font-size: 0.9rem;
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #6c63ff;
+      flex-shrink: 0;
+    }
+  }
+}
+
+/* Lado direito — formulário */
+.auth-form-side {
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  animation: fadeInUp 0.4s ease;
+
+  .auth-header {
+    margin-bottom: 36px;
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--color-primary);
+      margin-bottom: 24px;
+      text-decoration: none;
+
+      span { font-size: 1.4rem; }
+    }
+
+    h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    p { color: var(--color-text-muted); font-size: 0.9rem; }
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .form-footer {
+    margin-top: 8px;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+
+    a {
+      color: var(--color-primary);
+      font-weight: 500;
+      &:hover { color: var(--color-primary-h); }
+    }
+  }
+}
