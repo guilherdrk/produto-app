@@ -1,0 +1,76 @@
+# ============================================================
+# Docker Compose de PRODUÇÃO
+#
+# Diferença do docker-compose.yml local:
+#   - Não usa 'build:' — baixa imagens prontas do Docker Hub
+#   - Não expõe o banco de dados para fora (segurança)
+#   - Usa variáveis de ambiente do servidor
+#   - restart: always (reinicia automaticamente se cair)
+# ============================================================
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: produto-app-db
+    restart: always                # reinicia automaticamente
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - produto-network
+    # SEGURANÇA: banco NÃO exposto para fora do servidor em produção
+    # (sem 'ports:' — só acessível internamente pelos containers)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    # Usa a imagem publicada no Docker Hub pelo CD
+    # Substitua 'guilherdrk' pelo seu usuário do Docker Hub
+    image: ${DOCKER_USERNAME}/produto-app-backend:latest
+    container_name: produto-app-backend
+    restart: always
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      SPRING_PROFILES_ACTIVE: prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - produto-network
+    # SEGURANÇA: porta 8080 NÃO exposta em produção
+    # O Nginx acessa internamente via 'backend:8080'
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  frontend:
+    image: ${DOCKER_USERNAME}/produto-app-frontend:latest
+    container_name: produto-app-frontend
+    restart: always
+    ports:
+      - "80:80"    # apenas o frontend é exposto ao mundo
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - produto-network
+
+volumes:
+  postgres_data:
+
+networks:
+  produto-network:
+    driver: bridge
