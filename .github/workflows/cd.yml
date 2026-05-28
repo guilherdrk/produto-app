@@ -1,61 +1,60 @@
 # ============================================================
-# CD — Entrega Contínua (Continuous Delivery)
+# CD — Entrega Contínua + Deploy Automático
 #
 # QUANDO EXECUTA:
 #   - Push na branch 'main' (após merge de PR aprovado)
 #   - Execução manual via GitHub Actions UI
 #
-# OBJETIVO:
-#   Construir as imagens Docker e publicar no Docker Hub.
-#   As imagens ficam prontas para serem implantadas em qualquer servidor.
-#
-# PRÉ-REQUISITOS (configurar em Settings → Secrets):
-#   DOCKER_USERNAME  → seu usuário do Docker Hub
-#   DOCKER_PASSWORD  → sua senha ou Access Token do Docker Hub
+# SECRETS NECESSÁRIOS (Settings → Secrets and variables → Actions):
+#   DOCKER_USERNAME   → usuário do Docker Hub
+#   DOCKER_PASSWORD   → Access Token do Docker Hub
+#   SERVER_HOST       → IP ou domínio do servidor (ex: 157.245.80.100)
+#   SERVER_USER       → usuário SSH do servidor (ex: ubuntu, root)
+#   SERVER_SSH_KEY    → chave SSH privada para acessar o servidor
+#   POSTGRES_DB       → nome do banco em produção
+#   POSTGRES_USER     → usuário do banco em produção
+#   POSTGRES_PASSWORD → senha do banco em produção
+#   JWT_SECRET        → chave JWT de produção (forte e única!)
 # ============================================================
 
-name: CD — Build e Publicação de Imagens Docker
+name: CD — Build, Push e Deploy
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:   # permite rodar manualmente pela UI do GitHub
+  workflow_dispatch:
 
-# Só uma execução de CD por vez
 concurrency:
   group: cd-main
-  cancel-in-progress: false  # CD nunca cancela — deixa terminar
+  cancel-in-progress: false
 
 jobs:
 
   # ============================================================
-  # JOB: Build e Push das imagens Docker
+  # JOB 1: Build e Push das imagens Docker
   # ============================================================
   docker:
     name: 🐳 Build e Push Docker Hub
     runs-on: ubuntu-latest
+    # Exporta outputs para o próximo job usar
+    outputs:
+      backend-tag: ${{ steps.meta-backend.outputs.tags }}
+      frontend-tag: ${{ steps.meta-frontend.outputs.tags }}
 
     steps:
-      # 1. Clona o repositório
       - name: 📥 Checkout do código
         uses: actions/checkout@v4
 
-      # 2. Configura o Docker Buildx
-      # Buildx é o builder moderno do Docker — suporta multi-platform
       - name: 🔧 Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 3. Login no Docker Hub usando os Secrets configurados no GitHub
-      # NUNCA coloque credenciais diretamente no código!
       - name: 🔐 Login no Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 4. Gera as tags automaticamente
-      # Ex: latest, 1.0.0, sha-abc1234
-      - name: 🏷️ Gerar metadados do backend
+      - name: 🏷️ Metadados — Backend
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
@@ -64,7 +63,7 @@ jobs:
             type=raw,value=latest
             type=sha,prefix=sha-,format=short
 
-      - name: 🏷️ Gerar metadados do frontend
+      - name: 🏷️ Metadados — Frontend
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
@@ -73,8 +72,6 @@ jobs:
             type=raw,value=latest
             type=sha,prefix=sha-,format=short
 
-      # 5. Build e Push do Backend
-      # cache-from/cache-to: reutiliza camadas de builds anteriores
       - name: 🔧 Build e Push — Backend
         uses: docker/build-push-action@v6
         with:
@@ -82,10 +79,9 @@ jobs:
           push: true
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=gha    # GitHub Actions Cache
+          cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 6. Build e Push do Frontend
       - name: 🎨 Build e Push — Frontend
         uses: docker/build-push-action@v6
         with:
@@ -96,16 +92,69 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 7. Resumo da execução — aparece na aba Summary do Actions
-      - name: 📋 Resumo
+  # ============================================================
+  # JOB 2: Deploy no servidor via SSH
+  # Só roda após o JOB 1 terminar com sucesso
+  # ============================================================
+  deploy:
+    name: 🚀 Deploy no Servidor
+    runs-on: ubuntu-latest
+    needs: docker   # depende do job 'docker' ter completado
+    environment: production  # requer aprovação manual (configurável)
+
+    steps:
+      - name: 📥 Checkout (para pegar o docker-compose.prod.yml)
+        uses: actions/checkout@v4
+
+      # Configura a chave SSH para acessar o servidor
+      - name: 🔑 Configurar SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      # Adiciona o servidor ao known_hosts (evita prompt interativo)
+      - name: 🔏 Adicionar servidor ao known_hosts
         run: |
-          echo "## 🐳 Imagens publicadas com sucesso!" >> $GITHUB_STEP_SUMMARY
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      # Copia os arquivos necessários para o servidor
+      - name: 📤 Enviar arquivos de configuração para o servidor
+        run: |
+          scp docker-compose.prod.yml \
+              ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/produto-app/docker-compose.prod.yml
+          scp scripts/deploy.sh \
+              ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/produto-app/deploy.sh
+
+      # Cria o arquivo .env no servidor com as variáveis de produção
+      # NUNCA commite esse arquivo — está sendo gerado dinamicamente pelos Secrets
+      - name: 📝 Criar .env no servidor
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            cat > /opt/produto-app/.env << 'EOF'
+          DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          EOF
+          "
+
+      # Executa o script de deploy no servidor
+      - name: 🚀 Executar deploy
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            chmod +x /opt/produto-app/deploy.sh
+            cd /opt/produto-app
+            bash deploy.sh
+          "
+
+      # Resumo no GitHub Actions
+      - name: 📋 Resumo do Deploy
+        run: |
+          echo "## 🚀 Deploy realizado com sucesso!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Backend" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta-backend.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "### Frontend" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta-frontend.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Servidor:** ${{ secrets.SERVER_HOST }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Horário:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
