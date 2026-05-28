@@ -1,0 +1,10 @@
+# ============================================================
+# Prepara o mvnw para execução no Linux (CI/CD)
+# ============================================================
+name: Preparar ambiente
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
