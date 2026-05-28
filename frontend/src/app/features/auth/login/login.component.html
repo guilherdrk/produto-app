@@ -1,0 +1,77 @@
+<div class="auth-page">
+
+  <!-- Hero lateral -->
+  <div class="auth-hero">
+    <div class="hero-content">
+      <span class="hero-icon">📦</span>
+      <h1>Produto App</h1>
+      <p>Gerencie seu estoque com simplicidade, agilidade e total controle.</p>
+      <div class="hero-features">
+        <div class="hero-feature"><span class="dot"></span>CRUD completo de produtos</div>
+        <div class="hero-feature"><span class="dot"></span>Autenticação segura com JWT</div>
+        <div class="hero-feature"><span class="dot"></span>Interface moderna e responsiva</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulário -->
+  <div class="auth-form-side">
+    <div class="auth-card">
+      <div class="auth-header">
+        <a routerLink="/" class="logo">
+          <span>📦</span> Produto App
+        </a>
+        <h2>Bem-vindo de volta</h2>
+        <p>Faça login para acessar o sistema</p>
+      </div>
+
+      <!-- [formGroup] com colchetes = property binding (passa o objeto FormGroup) -->
+      <!-- formGroup sem colchetes = attribute binding (passa a string "form") — ERRADO! -->
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="field">
+          <label for="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            placeholder="seu@email.com"
+            autocomplete="email"
+            [class.erro]="email.invalid && email.touched"
+          />
+          <span class="mensagem-erro" *ngIf="email.invalid && email.touched">
+            Informe um email válido
+          </span>
+        </div>
+
+        <div class="field">
+          <label for="senha">Senha</label>
+          <input
+            id="senha"
+            type="password"
+            formControlName="senha"
+            placeholder="••••••"
+            autocomplete="current-password"
+            [class.erro]="senha.invalid && senha.touched"
+          />
+          <span class="mensagem-erro" *ngIf="senha.invalid && senha.touched">
+            Senha deve ter no mínimo 6 caracteres
+          </span>
+        </div>
+
+        <div class="alert alert--error" *ngIf="erro">
+          {{ erro }}
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--full" [disabled]="form.invalid || carregando">
+          <span class="spinner" *ngIf="carregando"></span>
+          {{ carregando ? 'Entrando...' : 'Entrar' }}
+        </button>
+      </form>
+
+      <p class="form-footer">
+        Não tem conta? <a routerLink="/register">Criar conta gratuita</a>
+      </p>
+    </div>
+  </div>
+
+</div>

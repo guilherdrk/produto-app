@@ -1,6 +1,8 @@
-version: '3.9'
-
 services:
+
+  # ================================
+  # BANCO DE DADOS
+  # ================================
   postgres:
     image: postgres:16-alpine
     container_name: produto-app-db
@@ -10,20 +12,74 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "5432:5432"          # Expõe para ferramentas externas (DBeaver, etc.)
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - produto-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U produto_user -d produto_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
+  # ================================
+  # BACKEND — Spring Boot
+  # ================================
+  backend:
+    build:
+      context: ./backend       # pasta com o Dockerfile
+      dockerfile: Dockerfile
+    container_name: produto-app-backend
+    restart: unless-stopped
+    environment:
+      # Conexão com o banco
+      # "postgres" = nome do serviço acima (DNS interno do Docker)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      # Perfil Spring
+      SPRING_PROFILES_ACTIVE: prod
+    ports:
+      - "8080:8080"            # Expõe para debug local
+    depends_on:
+      postgres:
+        condition: service_healthy  # Só inicia quando o Postgres estiver saudável
+    networks:
+      - produto-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s       # Spring Boot demora para iniciar
+
+  # ================================
+  # FRONTEND — Angular + Nginx
+  # ================================
+  frontend:
+    build:
+      context: ./frontend      # pasta com o Dockerfile
+      dockerfile: Dockerfile
+    container_name: produto-app-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"                # App acessível em http://localhost
+    depends_on:
+      backend:
+        condition: service_healthy  # Só inicia quando o backend estiver saudável
+    networks:
+      - produto-network
+
+# ================================
+# VOLUMES E REDES
+# ================================
 volumes:
-  postgres_data:
+  postgres_data:               # Volume persistente para os dados do banco
 
 networks:
   produto-network:
-    driver: bridge
+    driver: bridge             # Rede privada entre os containers
