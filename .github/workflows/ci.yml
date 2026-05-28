@@ -1,0 +1,142 @@
+# ============================================================
+# CI — Integração Contínua
+#
+# QUANDO EXECUTA:
+#   - Pull Requests abertos/atualizados para 'develop' ou 'main'
+#   - Push direto nas branches 'develop' e 'main'
+#
+# OBJETIVO:
+#   Garantir que o código que entra nas branches principais
+#   compila, passa nos testes e está minimamente válido.
+# ============================================================
+
+name: CI — Build e Testes
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Evita rodar múltiplas vezes para o mesmo PR
+# Se um novo push chega enquanto o anterior ainda roda, cancela o antigo
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ============================================================
+  # JOB 1: Backend — Spring Boot
+  # ============================================================
+  backend:
+    name: 🔧 Backend (Java 21 + Maven)
+    runs-on: ubuntu-latest
+
+    # Serviço PostgreSQL para os testes de integração
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: produto_db_test
+          POSTGRES_USER: produto_user
+          POSTGRES_PASSWORD: produto_pass
+        ports:
+          - 5432:5432
+        # Aguarda o banco estar pronto antes de continuar
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # 1. Clona o repositório
+      - name: 📥 Checkout do código
+        uses: actions/checkout@v4
+
+      # 2. Configura o Java 21
+      - name: ☕ Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'  # Eclipse Temurin (OpenJDK)
+          cache: 'maven'           # cacheia ~/.m2 entre execuções
+
+      # 3. Valida o projeto (sem rodar testes ainda)
+      - name: 🔍 Validar estrutura do projeto
+        working-directory: backend
+        run: ./mvnw validate -B
+
+      # 4. Compila o código-fonte
+      - name: 🏗️ Compilar
+        working-directory: backend
+        run: ./mvnw compile -B
+
+      # 5. Roda os testes (quando existirem)
+      # As variáveis de ambiente apontam para o PostgreSQL do service acima
+      - name: 🧪 Rodar testes
+        working-directory: backend
+        run: ./mvnw test -B
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/produto_db_test
+          SPRING_DATASOURCE_USERNAME: produto_user
+          SPRING_DATASOURCE_PASSWORD: produto_pass
+          JWT_SECRET: secret-apenas-para-ci-nao-usar-em-producao
+
+      # 6. Gera o JAR final (sem testes, já rodaram no passo anterior)
+      - name: 📦 Empacotar (gerar JAR)
+        working-directory: backend
+        run: ./mvnw package -DskipTests -B
+
+      # 7. Salva o JAR como artifact (pode ser baixado depois)
+      - name: 💾 Salvar JAR como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/target/*.jar
+          retention-days: 7   # mantém por 7 dias
+
+  # ============================================================
+  # JOB 2: Frontend — Angular
+  # Roda em PARALELO com o job backend
+  # ============================================================
+  frontend:
+    name: 🎨 Frontend (Node 18 + Angular)
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Clona o repositório
+      - name: 📥 Checkout do código
+        uses: actions/checkout@v4
+
+      # 2. Configura o Node.js 18
+      - name: 🟢 Configurar Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'                          # cacheia node_modules
+          cache-dependency-path: frontend/package-lock.json
+
+      # 3. Instala dependências (npm ci é mais rápido e determinístico que npm install)
+      - name: 📦 Instalar dependências
+        working-directory: frontend
+        run: npm ci
+
+      # 4. Verifica se o TypeScript compila sem erros
+      - name: 🔍 Verificar TypeScript
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      # 5. Build de produção — garante que o código gera bundle válido
+      - name: 🏗️ Build de produção
+        working-directory: frontend
+        run: npm run build -- --configuration production
+
+      # 6. Salva o build como artifact
+      - name: 💾 Salvar build como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
